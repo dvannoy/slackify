@@ -11,9 +11,9 @@ logging.basicConfig()
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
 
-slack_webhook = config.TEST_SLACK_WEBHOOK
+slack_webhook = config.SLACK_WEBHOOK
 TEST_MODE = False
-channels = config.test_channels #config.channels
+channels = config.channels
 username = 'SlacKing'
 
 def post_to_slack(payload, webhook):
