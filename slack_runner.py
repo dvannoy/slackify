@@ -145,7 +145,7 @@ def read_source(filename):
 
 
 if __name__ == "__main__":
-    records = read_source("/Users/dustinvannoy/dev/data/SlackersDevotionalSchedule.csv")
+    records = read_source(config.SLACK_SOURCE_FILE_PATH)
     log.debug("Data from file: %s", records)
 
     now = arrow.now('US/Pacific')
