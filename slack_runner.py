@@ -4,6 +4,7 @@ import json
 import requests
 import logging
 import csv
+import re
 import config
 
 logging.basicConfig()
@@ -42,6 +43,7 @@ def get_payload(date, rec):
     elif day_of_week == 5:
         return friday(get_channel(day_of_week), username, prayer, prayer_message, quote)
 
+
 def monday(channel, username, date, weekly_msg, scripture):
     payload = {
         'username': username,
@@ -50,7 +52,7 @@ def monday(channel, username, date, weekly_msg, scripture):
         "attachments": [
             {
                 "title": "Scripture of the Week",
-                "pretext": "*Week of {0}*\n{1}".format(date, weekly_msg),
+                "pretext": "*Week of {0}*\n<!channel>\n\n".format(date) + weekly_msg,
                 "text": scripture,
                 "mrkdwn_in": ["text", "pretext"]
             }
@@ -67,6 +69,7 @@ def tuesday(channel, username, memory_verse):
         "attachments": [
             {
                 "title": "Memory Verse",
+                "pretext": "<!channel>\n\nWhat are your first takeaways from this week's scripture?",
                 "text": memory_verse,
                 "mrkdwn_in": ["text", "pretext"]
             }
@@ -83,7 +86,7 @@ def wednesday(channel, username, q1, q2):
         "attachments": [
             {
                 "title": "Questions",
-                "pretext": "Here are this weeks question.  Please respond and discuss in this channel:",
+                "pretext": "<!channel>\n\nHere are this weeks question.  Please respond and discuss in this channel:",
                 "text": "1. {0}\n2. {1}".format(q1, q2),
                 "mrkdwn_in": ["text", "pretext"]
             }
@@ -103,7 +106,7 @@ def thursday(channel, username, application_message):
         "attachments": [
             {
                 "title": "Application Challenge",
-                "pretext": msg,
+                "pretext": "<!channel>\n\n{0}".format(msg),
                 "text": application_message,
                 "mrkdwn_in": ["text", "pretext"]
             }
@@ -125,7 +128,7 @@ def friday(channel, username, prayer, pray_for, quote):
             {
                 "title": "Prayer",
                 "text": "{0}\n\nThis week pray for: _{1}_".format(prayer, pray_for),
-                "pretext": "{0}\n\n".format(quote_str),
+                "pretext": "<!channel>\n\n{0}".format(quote_str),
                 "mrkdwn_in": ["text", "pretext"]
             }
         ]
@@ -137,11 +140,17 @@ def read_source(filename):
     file_data = []
     log.debug("Reading text from file %s", filename)
     with open(filename, 'rb') as f:
-        file_reader = csv.reader(f.read().splitlines())
+        file_reader = csv.reader(f)
         next(file_reader, None) # skip header
         for row  in file_reader:
-            file_data.append(row)
+            l = [clean_string(x) for x in row]
+            file_data.append(l)
     return file_data
+
+
+def clean_string(s):
+    return s.replace("\\n","\n").replace('\xe2\x80\x99',"'").replace('\xe2\x80\x98',"'").replace('\xe2\x80\x9c','"')\
+        .replace('\xe2\x80\x9d','"')
 
 
 if __name__ == "__main__":
@@ -149,14 +158,16 @@ if __name__ == "__main__":
     log.debug("Data from file: %s", records)
 
     now = arrow.now('US/Pacific')
+    #now = arrow.get("2017-10-02", 'YYYY-MM-DD',tzinfo='US/Pacific')  # override manually for testing
     weekday = now.weekday()
-    weekstart = now.shift(days=-weekday).floor('day') #.format('YYYY-MM-DD') #.format('M/D/YY')
+    weekstart = now.shift(days=-weekday).floor('day')
     today = now.floor('day')
     log.info("Current day: %s, weekday: %s, week start: %s", today, weekday, weekstart)
 
     for rec in records:
-        if rec[0] is not None and rec[0] != '' and arrow.get(rec[0], 'M/D/YY', tzinfo='US/Pacific') == weekstart:
+        log.info(rec)
+        if rec[0] is not None and rec[0] != '' and arrow.get(rec[0], 'YYYY-MM-DD', tzinfo='US/Pacific') == weekstart:
             payload = get_payload(today, rec)
             log.info("Payload received: %s", payload)
-            if not TEST_MODE:
+            if payload is not None and not TEST_MODE:
                 post_to_slack(payload, slack_webhook)
